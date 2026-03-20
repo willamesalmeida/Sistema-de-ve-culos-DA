@@ -9,17 +9,18 @@ from PySide6.QtWidgets import (
     QPushButton, QMessageBox
 )
 from PySide6.QtGui import QFont
-from PySide6.QtCore import Qt, QSize, Signal    # ← ALTERADO
+from PySide6.QtCore import Qt, QSize, Signal
 import qtawesome as qta
 from app.core.plate_validator import validate_plate
 from app.core.drivers_repository import create_driver
 from app.core.vehicles_repository import create_vehicle
+from app.ui.components.message_dialog import MessageDialog    
 
 
 class RegisterScreen(QWidget):
     """Registration screen for drivers and vehicles."""
 
-    navigate_home = Signal()    # ← NOVO
+    navigate_home = Signal()
 
     def __init__(self, parent: QWidget = None):
         super().__init__(parent)
@@ -85,7 +86,6 @@ class RegisterScreen(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
 
-        # ← NOVO: botão voltar
         btn_back = QPushButton()
         btn_back.setIcon(qta.icon("fa5s.arrow-left", color="#1565C0"))
         btn_back.setIconSize(QSize(16, 16))
@@ -264,18 +264,18 @@ class RegisterScreen(QWidget):
         model = self._field_model.text().strip()
 
         if not name:
-            QMessageBox.warning(self, "Campo obrigatório", "O nome do motorista é obrigatório.")
+            MessageDialog.warning(self, "O nome do motorista é obrigatório.")    
             self._field_name.setFocus()
             return
 
         if not plate:
-            QMessageBox.warning(self, "Campo obrigatório", "A placa do veículo é obrigatória.")
+            MessageDialog.warning(self, "A placa do veículo é obrigatória.")    
             self._field_plate.setFocus()
             return
 
         result = validate_plate(plate)
         if not result.is_valid:
-            QMessageBox.warning(self, "Placa inválida", result.message)
+            MessageDialog.warning(self, result.message)                         
             self._field_plate.setFocus()
             return
 
@@ -291,14 +291,18 @@ class RegisterScreen(QWidget):
                 model=model or None,
                 driver_id=driver.id,
             )
-            QMessageBox.information(
-                self, "Sucesso",
+            MessageDialog.success(                                              
+                self,
                 f"Motorista '{name}' e veículo '{result.normalized}' cadastrados com sucesso!"
             )
             self._on_clear()
 
         except Exception as e:
-            QMessageBox.critical(self, "Erro ao salvar", str(e))
+            error = str(e)
+            if "UNIQUE constraint failed: vehicles.plate" in error:
+                MessageDialog.error(self, "Essa placa já está cadastrada no sistema.")
+            else:
+                MessageDialog.error(self, "Ocorreu um erro ao salvar. Tente novamente.")                              
 
     def _on_clear(self) -> None:
         """Clears all form fields."""
