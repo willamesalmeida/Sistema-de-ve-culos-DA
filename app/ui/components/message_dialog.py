@@ -58,7 +58,9 @@ class MessageDialog(QDialog):
         config = _DIALOG_CONFIGS[kind]
 
         self.setWindowTitle(config["title"])
-        self.setFixedSize(360, 220)
+        # self.setFixedSize(360, 220)
+        self.setFixedWidth(360)
+        self.setMinimumHeight(200)  
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
