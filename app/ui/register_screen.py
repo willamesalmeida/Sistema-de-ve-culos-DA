@@ -73,7 +73,7 @@ class RegisterScreen(QWidget):
         layout.addWidget(separator)
 
         required_label = QLabel("* Campos obrigatórios")
-        required_label.setFont(QFont("Segoe UI", 8))
+        required_label.setFont(QFont("Segoe UI", 12))
         required_label.setStyleSheet("color: #9E9E9E; border: none;")
         required_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         layout.addWidget(required_label)
@@ -186,14 +186,14 @@ class RegisterScreen(QWidget):
 
         label_text = f"{label} *" if required else label
         lbl = QLabel(label_text)
-        lbl.setFont(QFont("Segoe UI", 9))
+        lbl.setFont(QFont("Segoe UI", 12))
         lbl.setStyleSheet("color: #616161; border: none;")
         layout.addWidget(lbl)
 
         field = QLineEdit()
         field.setPlaceholderText(placeholder)
         field.setFixedHeight(36)
-        field.setFont(QFont("Segoe UI", 10))
+        field.setFont(QFont("Segoe UI", 12))
         field.setStyleSheet("""
             QLineEdit {
                 border: 1px solid #E0E0E0;
@@ -219,7 +219,7 @@ class RegisterScreen(QWidget):
         layout.setSpacing(6)
 
         lbl = QLabel("Foto do motorista")
-        lbl.setFont(QFont("Segoe UI", 9))
+        lbl.setFont(QFont("Segoe UI", 12))
         lbl.setStyleSheet("color: #616161; border: none;")
         layout.addWidget(lbl)
 
@@ -262,12 +262,12 @@ class RegisterScreen(QWidget):
         text_layout.setSpacing(2)
 
         self._photo_label = QLabel("Clique para selecionar")
-        self._photo_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self._photo_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         self._photo_label.setStyleSheet("color: #1565C0; border: none; background: transparent;")
         text_layout.addWidget(self._photo_label)
 
         hint = QLabel("JPG ou PNG • Máx. 5MB")
-        hint.setFont(QFont("Segoe UI", 9))
+        hint.setFont(QFont("Segoe UI", 12))
         hint.setStyleSheet("color: #9E9E9E; border: none; background: transparent;")
         text_layout.addWidget(hint)
 
@@ -326,7 +326,7 @@ class RegisterScreen(QWidget):
         btn_clear = QPushButton("Limpar")
         btn_clear.setFixedHeight(38)
         btn_clear.setFixedWidth(100)
-        btn_clear.setFont(QFont("Segoe UI", 10))
+        btn_clear.setFont(QFont("Segoe UI", 12))
         btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_clear.setStyleSheet("""
             QPushButton {
@@ -349,7 +349,7 @@ class RegisterScreen(QWidget):
         btn_save = QPushButton("Salvar")
         btn_save.setFixedHeight(38)
         btn_save.setFixedWidth(100)
-        btn_save.setFont(QFont("Segoe UI", 10))
+        btn_save.setFont(QFont("Segoe UI", 12))
         btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_save.setStyleSheet("""
             QPushButton {

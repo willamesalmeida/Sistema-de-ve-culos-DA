@@ -12,13 +12,14 @@ from PySide6.QtGui import QFont, QPixmap, QIcon
 from PySide6.QtCore import Qt, QSize
 import qtawesome as qta
 from app.ui.register_screen import RegisterScreen
+from app.ui.search_screen import SearchScreen
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sistema de Veículos")
-        self.setMinimumSize(900, 700)
+        self.setMinimumSize(900, 750)
         self._build_ui()
 
     def _build_ui(self):
@@ -107,7 +108,7 @@ class MainWindow(QMainWindow):
             "  Consulta",
             qta.icon("fa5s.search", color="white")
         )
-        btn_search.clicked.connect(lambda: print("Consulta clicado"))
+        btn_search.clicked.connect(self._show_search_screen)
         layout.addWidget(btn_search)
 
         layout.addSpacing(20)
@@ -182,4 +183,11 @@ class MainWindow(QMainWindow):
         self._clear_content_area()
         screen = RegisterScreen(self.content_area)
         screen.navigate_home.connect(self._show_home)    # ← NOVO
+        self.content_area.layout().addWidget(screen)
+
+    def _show_search_screen(self) -> None:         
+        """Loads the search screen into the content area."""
+        self._clear_content_area()
+        screen = SearchScreen(self.content_area)
+        screen.navigate_home.connect(self._show_home)
         self.content_area.layout().addWidget(screen)
