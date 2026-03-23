@@ -18,7 +18,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sistema de Veículos")
-        self.setMinimumSize(900, 600)
+        self.setMinimumSize(900, 700)
         self._build_ui()
 
     def _build_ui(self):

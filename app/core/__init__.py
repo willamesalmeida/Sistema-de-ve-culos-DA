@@ -1,18 +1,17 @@
-# This file marks 'app/core' as a Python package.
+# # This file marks 'app/core' as a Python package.
 # ```
 
 # ---
 
-# ## Estrutura final no VS Code
+# Fora isso está tudo correto e profissional! Salva essas correções e commita:
+
+# **Summary:**
 # ```
-# sistema_veiculos/
-# ├── venv/
-# ├── app/
-# │   ├── __init__.py
-# │   ├── ui/
-# │   ├── core/
-# │   │   ├── __init__.py
-# │   │   └── database.py
-# │   └── data/
-# ├── requirements.txt
-# └── main.py
+# refactor: cleanup unused imports and dead code
+# ```
+
+# **Description:**
+# ```
+# - Remove unused QMessageBox import from register_screen
+# - Remove unreachable print statement from main.py
+# - Clean up commented code from app/core/__init__.py
