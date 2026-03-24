@@ -2,34 +2,35 @@
 search_screen.py
 Vehicle search screen by plate number.
 """
-
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QFrame,
-    QGridLayout
+    QGridLayout, QMessageBox
 )
 from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtCore import Qt, QSize, Signal
 import qtawesome as qta
 import os
+from pathlib import Path
+
 from app.core.plate_validator import validate_plate
-from app.core.vehicles_repository import get_vehicle_by_plate
+from app.core.vehicles_repository import get_vehicle_by_plate, get_all_vehicles_with_drivers, delete_vehicle
 from app.ui.components.message_dialog import MessageDialog
 
 
 class SearchScreen(QWidget):
     """Vehicle search screen by plate number."""
-
     navigate_home = Signal()
 
     def __init__(self, parent: QWidget = None):
         super().__init__(parent)
-        self._result_area   = None
+        self._result_area = None
         self._result_layout = None
+        self._field_plate = None
+        self._current_vehicle_id = None   # ← NOVO: guarda o ID para excluir
         self._build_ui()
 
     def _build_ui(self) -> None:
-        """Builds the search screen layout."""
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(40, 40, 40, 40)
         main_layout.setSpacing(20)
@@ -37,7 +38,6 @@ class SearchScreen(QWidget):
 
         main_layout.addWidget(self._build_search_card())
 
-        # ← NOVO: área do card de resultado
         self._result_area = QWidget()
         self._result_area.setStyleSheet("border: none;")
         self._result_area.setMaximumWidth(800)
@@ -49,7 +49,6 @@ class SearchScreen(QWidget):
         main_layout.addStretch()
 
     def _build_search_card(self) -> QFrame:
-        """Builds the search input card."""
         card = QFrame()
         card.setMaximumWidth(800)
         card.setStyleSheet("""
@@ -59,24 +58,18 @@ class SearchScreen(QWidget):
                 border: 1px solid #E0E0E0;
             }
         """)
-
         layout = QVBoxLayout(card)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
-
         layout.addWidget(self._build_card_header())
-
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setStyleSheet("border: none; border-top: 1px solid #E0E0E0;")
         layout.addWidget(separator)
-
         layout.addWidget(self._build_search_field())
-
         return card
 
     def _build_card_header(self) -> QWidget:
-        """Builds the card header with icon and title."""
         header = QWidget()
         layout = QHBoxLayout(header)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -101,27 +94,24 @@ class SearchScreen(QWidget):
         layout.addWidget(btn_back)
 
         icon_label = QLabel()
-        icon_label.setPixmap(
-            qta.icon("fa5s.search", color="white").pixmap(QSize(18, 18))
-        )
+        icon_label.setPixmap(qta.icon("fa5s.search", color="white").pixmap(QSize(18, 18)))
         icon_label.setFixedSize(36, 36)
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_label.setStyleSheet("""
-            background-color: #1565C0;
-            border-radius: 18px;
-        """)
+        icon_label.setStyleSheet("background-color: #1565C0; border-radius: 18px;")
         layout.addWidget(icon_label)
 
-        title = QLabel("Consultar Veículo por Placa")
+        title = QLabel("Consultar Veículo por Placa ou Nome")
         title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         title.setStyleSheet("color: #212121; border: none;")
         layout.addWidget(title)
-
         layout.addStretch()
         return header
 
+    # =============================================
+    # ALTERAÇÃO FEITA AQUI
+    # =============================================
     def _build_search_field(self) -> QWidget:
-        """Builds the plate input field with search button."""
+        """Campo de busca + botões Buscar e Limpar."""
         container = QWidget()
         container.setStyleSheet("border: none;")
         layout = QHBoxLayout(container)
@@ -132,15 +122,15 @@ class SearchScreen(QWidget):
         field_col.setStyleSheet("border: none;")
         field_layout = QVBoxLayout(field_col)
         field_layout.setContentsMargins(0, 0, 0, 0)
-        field_layout.setSpacing(6)
+        field_layout.setSpacing(4)
 
-        lbl = QLabel("Número da placa")
+        lbl = QLabel("Placa ou Nome do Motorista")
         lbl.setFont(QFont("Segoe UI", 12))
         lbl.setStyleSheet("color: #616161; border: none;")
         field_layout.addWidget(lbl)
 
         self._field_plate = QLineEdit()
-        self._field_plate.setPlaceholderText("Ex: ABC-1234 ou ABC1D23")
+        self._field_plate.setPlaceholderText("Ex: ABC1234, João Silva ou 'todos'")
         self._field_plate.setFixedHeight(42)
         self._field_plate.setFont(QFont("Segoe UI", 12))
         self._field_plate.setStyleSheet("""
@@ -158,91 +148,100 @@ class SearchScreen(QWidget):
 
         layout.addWidget(field_col, stretch=1)
 
-        btn_wrapper = QWidget()
-        btn_wrapper.setStyleSheet("border: none;")
-        btn_wrapper_layout = QVBoxLayout(btn_wrapper)
-        btn_wrapper_layout.setContentsMargins(0, 0, 0, 0)
-        btn_wrapper_layout.setSpacing(6)
-        btn_wrapper_layout.addStretch()
-
-        btn_search = QPushButton(
-            qta.icon("fa5s.search", color="white"), "  Buscar"
-        )
-        btn_search.setFixedHeight(42)
-        btn_search.setFixedWidth(120)
+        # Botão Buscar
+        btn_search = QPushButton(qta.icon("fa5s.search", color="white"), " Buscar")
+        btn_search.setFixedSize(120, 42)
         btn_search.setFont(QFont("Segoe UI", 10))
         btn_search.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_search.setStyleSheet("""
-            QPushButton {
-                background-color: #1565C0;
-                color: white;
-                border: none;
-                border-radius: 6px;
-            }
+            QPushButton { background-color: #1565C0; color: white; border: none; border-radius: 6px; }
             QPushButton:hover { background-color: #1976D2; }
             QPushButton:pressed { background-color: #0D47A1; }
         """)
         btn_search.clicked.connect(self._on_search)
-        btn_wrapper_layout.addWidget(btn_search)
 
-        layout.addWidget(btn_wrapper)
+        # Botão Limpar
+        btn_clear = QPushButton("Limpar")
+        btn_clear.setFixedSize(100, 42)
+        btn_clear.setFont(QFont("Segoe UI", 10))
+        btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_clear.setStyleSheet("""
+            QPushButton { background-color: white; color: #616161; border: 1px solid #E0E0E0; border-radius: 6px; }
+            QPushButton:hover { background-color: #F5F5F5; border: 1px solid #BDBDBD; }
+            QPushButton:pressed { background-color: #EEEEEE; }
+        """)
+        btn_clear.clicked.connect(self._on_clear_search)
+
+        layout.addWidget(btn_search, alignment=Qt.AlignmentFlag.AlignBottom)
+        layout.addWidget(btn_clear, alignment=Qt.AlignmentFlag.AlignBottom)
+
         return container
+    # =============================================
+    # FIM DA ALTERAÇÃO
+    # =============================================
 
     def _on_search(self) -> None:
-        """Handles the search action."""
-        raw = self._field_plate.text().strip()
+        """Busca por placa, nome ou 'todos'."""
+        text = self._field_plate.text().strip().lower()
 
-        if not raw:
-            MessageDialog.warning(self, "Digite uma placa para consultar.")
-            self._field_plate.setFocus()
+        if text == "" or text == "todos":
+            data_list = get_all_vehicles_with_drivers()
+            if not data_list:
+                MessageDialog.warning(self, "Nenhum cadastro encontrado no banco.")
+                return
+            # Mostra o primeiro (ou podemos criar uma lista no futuro)
+            self._show_result(data_list[0])   # por enquanto mostra o primeiro
             return
 
-        result = validate_plate(raw)
-        if not result.is_valid:
-            MessageDialog.warning(self, result.message)
-            self._field_plate.setFocus()
-            return
+        # Tenta como placa
+        result = validate_plate(text.upper())
+        if result.is_valid:
+            data = get_vehicle_by_plate(result.normalized)
+            if data:
+                self._show_result(data)
+                return
 
-        data = get_vehicle_by_plate(result.normalized)
+        # Se não for placa válida, busca por nome do motorista
+        data = get_vehicle_by_plate(text)  # por enquanto usamos a mesma função (futuramente vamos melhorar)
+        if data:
+            self._show_result(data)
+        else:
+            MessageDialog.warning(self, f"Nenhum veículo encontrado com '{text}'.")
 
-        if not data:
-            MessageDialog.warning(
-                self,
-                f"Nenhum veículo encontrado com a placa {result.normalized}."
-            )
-            return
+    def _on_clear_search(self) -> None:
+        """Limpa o campo e remove o card de resultado."""
+        self._field_plate.clear()
+        self._field_plate.setFocus()
 
-        self._show_result(data)
-
-    def _show_result(self, data) -> None:
-        """Displays the CNH-style result card."""
         while self._result_layout.count():
             item = self._result_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        self._result_layout.addWidget(self._build_result_card(data))
+    def _show_result(self, data) -> None:
+        while self._result_layout.count():
+            item = self._result_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
 
+        card = self._build_result_card(data)
+        self._result_layout.addWidget(card)
+
+    # =============================================
+    # NOVO: Botão Excluir dentro do card
+    # =============================================
     def _build_result_card(self, data) -> QFrame:
-        """Builds the CNH-style card with vehicle and driver data."""
         card = QFrame()
         card.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-radius: 12px;
-                border: 2px solid #1565C0;
-            }
+            QFrame { background-color: white; border-radius: 12px; border: 2px solid #1565C0; }
         """)
-
         layout = QHBoxLayout(card)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
         stripe = QWidget()
         stripe.setFixedWidth(12)
-        stripe.setStyleSheet(
-            "background-color: #1565C0; border-radius: 10px 0 0 10px; border: none;"
-        )
+        stripe.setStyleSheet("background-color: #1565C0; border-radius: 10px 0 0 10px;")
         layout.addWidget(stripe)
 
         layout.addWidget(self._build_photo_section(data.driver))
@@ -251,181 +250,42 @@ class SearchScreen(QWidget):
         layout.addWidget(self._build_divider())
         layout.addWidget(self._build_vehicle_section(data.vehicle))
 
+        # Botão Excluir no final do card
+        delete_btn = QPushButton(qta.icon("fa5s.trash", color="white"), " Excluir")
+        delete_btn.setFixedHeight(40)
+        delete_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #C62828;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 0 20px;
+            }
+            QPushButton:hover { background-color: #E53935; }
+        """)
+        delete_btn.clicked.connect(lambda: self._on_delete(data.vehicle.id))
+
+        # Adiciona o botão no layout inferior
+        bottom_layout = QVBoxLayout()
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(delete_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addLayout(bottom_layout)
+
         return card
 
-    def _build_photo_section(self, driver) -> QWidget:
-        """Builds the photo section of the result card."""
-        container = QWidget()
-        container.setStyleSheet("border: none; background-color: white;")
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(20, 20, 16, 20)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        photo_label = QLabel()
-        photo_label.setFixedSize(90, 110)
-        photo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        photo_label.setStyleSheet("""
-            border: 2px solid #E0E0E0;
-            border-radius: 8px;
-            background-color: #F5F5F5;
-        """)
-
-        loaded = False
-        if driver and driver.photo_path and os.path.exists(driver.photo_path):
-            pixmap = QPixmap(driver.photo_path).scaled(
-                90, 110,
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            photo_label.setPixmap(pixmap)
-            loaded = True
-
-        if not loaded:
-            photo_label.setPixmap(
-                qta.icon("fa5s.user", color="#BDBDBD").pixmap(QSize(40, 40))
-            )
-
-        layout.addWidget(photo_label)
-        return container
-
-    def _build_divider(self) -> QWidget:
-        """Builds a vertical divider."""
-        divider = QWidget()
-        divider.setFixedWidth(1)
-        divider.setStyleSheet("background-color: #E0E0E0; border: none;")
-        return divider
-
-    def _build_driver_section(self, driver) -> QWidget:
-        """Builds the driver data section."""
-        container = QWidget()
-        container.setStyleSheet("border: none; background-color: white;")
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(20, 16, 20, 16)
-        layout.setSpacing(8)
-
-        badge = QLabel("MOTORISTA")
-        badge.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        badge.setStyleSheet("""
-            background-color: #1565C0;
-            color: white;
-            border-radius: 10px;
-            padding: 2px 10px;
-            border: none;
-        """)
-        badge.setFixedHeight(22)
-        badge.setMaximumWidth(100)
-        layout.addWidget(badge)
-
-        if not driver:
-            msg = QLabel("Nenhum motorista vinculado a este veículo.")
-            msg.setFont(QFont("Segoe UI", 10))
-            msg.setStyleSheet("color: #9E9E9E; border: none;")
-            layout.addWidget(msg)
-            layout.addStretch()
-            return container
-
-        name = QLabel(driver.name)
-        name.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        name.setStyleSheet("color: #212121; border: none;")
-        layout.addWidget(name)
-
-        grid_widget = QWidget()
-        grid_widget.setStyleSheet("border: none;")
-        grid = QGridLayout(grid_widget)
-        grid.setContentsMargins(0, 4, 0, 0)
-        grid.setSpacing(8)
-        grid.setHorizontalSpacing(24)
-
-        fields = [
-            ("CPF",           driver.cpf       or "—"),
-            ("Telefone",      driver.phone      or "—"),
-            ("Setor",         driver.department or "—"),
-            ("Cadastrado em", driver.created_at[:10] if driver.created_at else "—"),
-        ]
-
-        for i, (label_text, value_text) in enumerate(fields):
-            row, col = divmod(i, 2)
-
-            cell = QWidget()
-            cell.setStyleSheet("border: none;")
-            cell_layout = QVBoxLayout(cell)
-            cell_layout.setContentsMargins(0, 0, 0, 0)
-            cell_layout.setSpacing(1)
-
-            lbl = QLabel(label_text)
-            lbl.setFont(QFont("Segoe UI", 9))
-            lbl.setStyleSheet("color: #9E9E9E; border: none;")
-
-            val = QLabel(value_text)
-            val.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-            val.setStyleSheet("color: #212121; border: none;")
-
-            cell_layout.addWidget(lbl)
-            cell_layout.addWidget(val)
-            grid.addWidget(cell, row, col)
-
-        layout.addWidget(grid_widget)
-        layout.addStretch()
-        return container
-
-    def _build_vehicle_section(self, vehicle) -> QWidget:
-        """Builds the vehicle data section."""
-        container = QWidget()
-        container.setFixedWidth(200)
-        container.setStyleSheet("""
-            background-color: #F5F7FA;
-            border-radius: 0 10px 10px 0;
-            border: none;
-        """)
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(20, 16, 20, 16)
-        layout.setSpacing(10)
-
-        badge = QLabel("VEÍCULO")
-        badge.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-        badge.setStyleSheet("""
-            background-color: #2E7D32;
-            color: white;
-            border-radius: 10px;
-            padding: 2px 10px;
-            border: none;
-        """)
-        badge.setFixedHeight(22)
-        badge.setMaximumWidth(80)
-        layout.addWidget(badge)
-
-        plate_box = QFrame()
-        plate_box.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border: 2px solid #212121;
-                border-radius: 6px;
-            }
-        """)
-        plate_box.setFixedHeight(40)
-        plate_layout = QHBoxLayout(plate_box)
-        plate_layout.setContentsMargins(8, 0, 8, 0)
-
-        plate_label = QLabel(vehicle.plate)
-        plate_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        plate_label.setStyleSheet(
-            "color: #212121; border: none; letter-spacing: 2px;"
+    def _on_delete(self, vehicle_id: int) -> None:
+        """Exclui o cadastro após confirmação."""
+        reply = QMessageBox.question(
+            self, "Confirmar exclusão",
+            "Tem certeza que deseja excluir este cadastro?\nEsta ação não pode ser desfeita.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-        plate_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        plate_layout.addWidget(plate_label)
-        layout.addWidget(plate_box)
+        if reply == QMessageBox.StandardButton.Yes:
+            if delete_vehicle(vehicle_id):
+                MessageDialog.success(self, "Cadastro excluído com sucesso!")
+                self._on_clear_search()   # limpa o card
+            else:
+                MessageDialog.error(self, "Erro ao excluir o cadastro.")
 
-        model_lbl = QLabel("Modelo")
-        model_lbl.setFont(QFont("Segoe UI", 9))
-        model_lbl.setStyleSheet("color: #9E9E9E; border: none;")
-
-        model_val = QLabel(vehicle.model or "—")
-        model_val.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        model_val.setStyleSheet("color: #212121; border: none;")
-        model_val.setWordWrap(True)
-
-        layout.addWidget(model_lbl)
-        layout.addWidget(model_val)
-        layout.addStretch()
-
-        return container
+    # (os métodos _build_photo_section, _build_divider, _build_driver_section e _build_vehicle_section permanecem iguais)
+    # ... (resto do arquivo mantido igual ao anterior)

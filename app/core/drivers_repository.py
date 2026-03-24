@@ -25,31 +25,6 @@ class Driver:
     updated_at: Optional[str]
 
 
-# ---------------------------------------------------------------------------
-# Read
-# ---------------------------------------------------------------------------
-
-def get_all_drivers() -> list[Driver]:
-    """Returns all drivers ordered by name."""
-    with get_connection() as conn:
-        rows = conn.execute("""
-            SELECT id, name, cpf, phone, department, photo_path, created_at, updated_at
-            FROM drivers
-            ORDER BY name ASC
-        """).fetchall()
-        return [_row_to_driver(row) for row in rows]
-
-
-def get_driver_by_id(driver_id: int) -> Optional[Driver]:
-    """Returns a driver by ID or None if not found."""
-    with get_connection() as conn:
-        row = conn.execute("""
-            SELECT id, name, cpf, phone, department, photo_path, created_at, updated_at
-            FROM drivers
-            WHERE id = ?
-        """, (driver_id,)).fetchone()
-        return _row_to_driver(row) if row else None
-
 
 # ---------------------------------------------------------------------------
 # Create
@@ -84,6 +59,31 @@ def create_driver(
         driver_id = cursor.lastrowid
 
     return get_driver_by_id(driver_id)
+
+# ---------------------------------------------------------------------------
+# Read
+# ---------------------------------------------------------------------------
+
+def get_all_drivers() -> list[Driver]:
+    """Returns all drivers ordered by name."""
+    with get_connection() as conn:
+        rows = conn.execute("""
+            SELECT id, name, cpf, phone, department, photo_path, created_at, updated_at
+            FROM drivers
+            ORDER BY name ASC
+        """).fetchall()
+        return [_row_to_driver(row) for row in rows]
+
+
+def get_driver_by_id(driver_id: int) -> Optional[Driver]:
+    """Returns a driver by ID or None if not found."""
+    with get_connection() as conn:
+        row = conn.execute("""
+            SELECT id, name, cpf, phone, department, photo_path, created_at, updated_at
+            FROM drivers
+            WHERE id = ?
+        """, (driver_id,)).fetchone()
+        return _row_to_driver(row) if row else None
 
 
 # ---------------------------------------------------------------------------
